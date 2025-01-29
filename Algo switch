@@ -1,0 +1,83 @@
+//@version=5
+indicator("Switch Strategy (Optimized)", overlay=true)
+
+// Candle color checks
+isGreen = close > open
+isRed = close < open
+
+// Detect switches AFTER the candle closes
+var float lastBullishKey = na
+var float lastBearishKey = na
+var color lastBullishColor = na
+var color lastBearishColor = na
+var int lastBullishBar = na
+var int lastBearishBar = na
+
+// Track prior switches for profit targets
+var float priorBullishKey = na
+var float priorBearishKey = na
+var color priorBullishColor = na
+var color priorBearishColor = na
+var int priorBullishBar = na
+var int priorBearishBar = na
+
+// Only process when the current candle is confirmed
+if barstate.isconfirmed
+    // Detect switches
+    bullishSwitch = isGreen and isRed[1]
+    bearishSwitch = isRed and isGreen[1]
+
+    // Update key levels and colors
+    if bullishSwitch
+        // Determine key level and color based on N-2 candle
+        keyLevel = isRed[2] ? high[2] : low[2]
+        lineColor = isRed[2] ? color.red : color.green
+        lastBullishKey := keyLevel
+        lastBullishColor := lineColor
+        lastBullishBar := bar_index[2]
+
+        // Update prior bearish key
+        if not na(lastBearishKey)
+            priorBearishKey := lastBearishKey
+            priorBearishColor := lastBearishColor
+            priorBearishBar := lastBearishBar
+
+    if bearishSwitch
+        // Determine key level and color based on N-2 candle
+        keyLevel = isRed[2] ? high[2] : low[2]
+        lineColor = isRed[2] ? color.red : color.green
+        lastBearishKey := keyLevel
+        lastBearishColor := lineColor
+        lastBearishBar := bar_index[2]
+
+        // Update prior bullish key
+        if not na(lastBullishKey)
+            priorBullishKey := lastBullishKey
+            priorBullishColor := lastBullishColor
+            priorBullishBar := lastBullishBar
+
+// Plot current key levels with dynamic colors
+if not na(lastBullishKey)
+    line.new(lastBullishBar, lastBullishKey, bar_index, lastBullishKey, color=lastBullishColor, extend=extend.right)
+    label.new(bar_index, lastBullishKey, str.tostring(lastBullishKey, "#.#####"), color=lastBullishColor, textcolor=color.white, style=label.style_label_left)
+
+if not na(lastBearishKey)
+    line.new(lastBearishBar, lastBearishKey, bar_index, lastBearishKey, color=lastBearishColor, extend=extend.right)
+    label.new(bar_index, lastBearishKey, str.tostring(lastBearishKey, "#.#####"), color=lastBearishColor, textcolor=color.white, style=label.style_label_left)
+
+// Plot prior profit targets
+if not na(priorBullishKey)
+    line.new(priorBullishBar, priorBullishKey, bar_index, priorBullishKey, color=priorBullishColor, extend=extend.right)
+    label.new(bar_index, priorBullishKey, "Target: " + str.tostring(priorBullishKey, "#.#####"), color=priorBullishColor, textcolor=color.white, style=label.style_label_left)
+
+if not na(priorBearishKey)
+    line.new(priorBearishBar, priorBearishKey, bar_index, priorBearishKey, color=priorBearishColor, extend=extend.right)
+    label.new(bar_index, priorBearishKey, "Target: " + str.tostring(priorBearishKey, "#.#####"), color=priorBearishColor, textcolor=color.white, style=label.style_label_left)
+
+// Entry conditions (trigger after close)
+bullishEntry = ta.valuewhen(barstate.isconfirmed, close > lastBullishKey, 0)
+bearishEntry = ta.valuewhen(barstate.isconfirmed, close < lastBearishKey, 0)
+
+// Alerts
+alertcondition(bullishEntry, "Bullish Entry: Break Key Level")
+alertcondition(bearishEntry, "Bearish Entry: Break Key Level")
